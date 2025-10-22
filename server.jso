@@ -1,0 +1,29 @@
+const express = require('express');
+const cors = require('cors');
+
+const app = express();
+app.use(cors());
+app.use(express.json());
+
+// base de données temporaire en mémoire
+app.locals.db = app.locals.db || {
+  settings:{ cashConversionEnabled:false },
+  users:[ { id:1, name:'Myriam', plumes:3270, badges:[] } ],
+  projects:[ { id:1, authorId:1, title:'Recueil', totalSupportUSD:0,
+    totalPlumesReceived:0, sharesCount:0, badges:[], trophies:[] } ],
+  supports:[]
+};
+
+// routeur de plumonomie (à venir)
+try {
+  const { router: plumoRouter } = require('./src/routes/plumonomie');
+  app.use('/api', plumoRouter);
+} catch (e) {
+  console.warn("⚠️ Route plumonomie non trouvée, tu pourras l’ajouter ensuite.");
+}
+
+// test simple
+app.get('/api/ping', (req,res)=> res.json({ok:true, message:'pong'}));
+
+const PORT = 3000;
+app.listen(PORT, ()=> console.log(`🚀 API Libra-Plumes sur http://127.0.0.1:${PORT}`));
