@@ -3,35 +3,58 @@
 // Libra-Plumes — API client (via proxy Vite)
 // =============================
 
-// ⚠️ IMPORTANT : on passe par le proxy Vite.
-// Le backend est atteint via le préfixe /api (configuré dans vite.config.js).
+// Le backend est atteint via le proxy Vite (vite.config.js)
+// → toutes les requêtes passent par /api
 const BASE = "/api";
 
-// --- Fonction générique HTTP ---
+// --- Fonction générique HTTP (avec timeout & erreurs claires) ---
 async function http(path, options = {}) {
-  const res = await fetch(`${BASE}${path}`, {
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
-    },
-    ...options,
-  });
+  const url = `${BASE}${path}`;
 
-  let data = null;
+  // Timeout raisonnable (10s)
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 10_000);
+
+  // Headers: on n’ajoute "Content-Type: application/json" que si on envoie un body
+  const hasBody = typeof options.body !== "undefined";
+  const headers = {
+    Accept: "application/json",
+    ...(hasBody ? { "Content-Type": "application/json" } : {}),
+    ...(options.headers || {}),
+  };
+
   try {
-    data = await res.json();
-  } catch (_) {
-    // OK si pas de JSON
-  }
+    const res = await fetch(url, {
+      ...options,
+      headers,
+      signal: ctrl.signal,
+    });
 
-  if (!res.ok) {
-    const msg =
-      (data && (data.message || data.error)) ||
-      `${res.status} ${res.statusText}`;
-    throw new Error(msg);
-  }
+    // Tente de parser JSON (même en cas d’erreur HTTP)
+    let data = null;
+    try {
+      data = await res.json();
+    } catch {
+      /* Pas grave si pas de JSON (204, etc.) */
+    }
 
-  return data ?? {};
+    if (!res.ok) {
+      const msg =
+        (data && (data.message || data.error)) ||
+        `${res.status} ${res.statusText}`;
+      throw new Error(msg);
+    }
+
+    return data ?? {};
+  } catch (e) {
+    if (e.name === "AbortError") {
+      throw new Error("Requête expirée (timeout).");
+    }
+    // Erreurs réseau (backend éteint, proxy HS, etc.)
+    throw new Error(e.message || "Erreur réseau.");
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 // --- Endpoints ---
@@ -74,6 +97,9 @@ export const api = {
     http(`/projects/${id}/share`, {
       method: "POST",
     }),
+
+  // (optionnel) petite route santé si tu en as besoin côté UI
+  health: () => http("/health"),
 };
 
 

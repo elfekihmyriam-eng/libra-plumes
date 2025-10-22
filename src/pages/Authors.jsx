@@ -1,4 +1,3 @@
-// src/pages/Authors.jsx
 import React, { useEffect, useState } from "react";
 import { api } from "../lib/api.js";
 
@@ -8,11 +7,10 @@ export default function Authors() {
   const [err, setErr]           = useState("");
   const [loading, setLoading]   = useState(true);
 
-  // Permet /authors et /authors/2 (par défaut: 2 = Sandy)
   function getAuthorIdFromURL() {
     const path = window.location.pathname.toLowerCase();
     const m = path.match(/\/authors?\/(\d+)/);
-    return m ? Number(m[1]) : 2;
+    return m ? Number(m[1]) : 2; // défaut = Sandy
   }
 
   useEffect(() => {
@@ -69,4 +67,3 @@ export default function Authors() {
     </main>
   );
 }
-
